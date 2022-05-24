@@ -28,14 +28,23 @@ extension Sift {
         @Flag(name: [.short, .customLong("verbose")], help: "Verbose mode.")
         var verboseMode: Bool = false
         
+        @Option(name: .shortAndLong, help: "Overrides the simulator UUID in orchestrator config")
+        var overrideSimulatorUUIDs: [String] = []
+        
         mutating func run() {
             verbose = verboseMode
             let orchestrator = OrchestratorAPI(endpoint: endpoint, token: token)
 
             //Get config for testplan
-            guard let config = orchestrator.get(testplan: testPlan, status: .enabled) else {
+            guard var config = orchestrator.get(testplan: testPlan, status: .enabled) else {
                 Log.error("Error: can't get config for TestPlan: \(testPlan)")
                 Sift.exit(withError: NSError(domain: "Error: can't get config for TestPlan: \(testPlan)", code: 1))
+            }
+            
+            // Override simulator device UUIDs if needed
+            if var singleNode = config.nodes.first, config.nodes.count == 1, !overrideSimulatorUUIDs.isEmpty {
+                singleNode.UDID.simulators = overrideSimulatorUUIDs
+                config.nodes[0] = singleNode
             }
             
             // extract all tests from bundle
